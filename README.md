@@ -1,14 +1,19 @@
-# HTML Prototype template for Cursor
+# Cursor用プロトタイプテンプレート
 
-This template is for creating HTML prototypes of any services using an Generative AI by an IDE such as Cursor. Even if you do not have knowledge of HTML, you can create HTML prototypes by writing service specifications in natural language and providing simple prompts to the AI. 
+これは、[Cursor](https://www.cursor.com/ja)でAIを使って、ウェブサービスのHTMLプロトタイプやランディングページを作成するためのテンプレートです。HTMLの知識がなくても、サービスの仕様を自然言語で記述し、AIに簡単なプロンプトを与えるだけで、HTMLプロトタイプを作成することができます。
 
-## How to use
 
-1. Write the service specifications in [specifications.md](specifications.md) (Either English or other languages are fine).
-2. Provide a simple prompt to the AI agent ( Cursor Composer ) to develop the prototype.
+## 使い方
 
-The way to give instructions is as follows:
+1. このリポジトリのZIPファイルをダウンロードして、Cursorで開く
+2. [/cursor/rules/specifications.mdc](specifications.mdc)にサービスの仕様を記述します。
+3. プロンプトを実行してページを生成します。index.htmlにテンプレートが入っています。これをコピーして、ページを増やすこともできます。プロンプトはたとえば以下のようになります。
 
 ```
-Based on the content of @specifications.md, build a landing page of the service in index.html.
+index.html に、このサービスのランディングページを作成してください。
 ```
+
+4. 生成されたページを確認して、必要に応じて修正します。修正も、AIに指示を出すことで可能です。
+   
+
+

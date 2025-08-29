@@ -1,0 +1,258 @@
+---
+description: Difyを利用して作業を行う場合に必ず参照する
+globs:
+alwaysApply: false
+---
+# HTMLファイルとDifyとの接続
+
+HTMLファイルから、Difyのチャット/ワークフローのAPIを利用する場合は、以下のライブラリを利用する。
+
+https://github.com/dify-io/dify-js-sdk
+
+HTML で次のように CDN から直接読み込める。
+
+```html
+<script src="https://cdn.jsdelivr.net/gh/takaaki-mizuno/dify-js@0.1.0/dify.js"></script>
+```
+
+## クライアントを初期化
+
+**Difyクラウド版（デフォルト）:**
+```javascript
+// 'your_api_key_here'を実際のDify APIキーに置き換えてください
+const dify = new Dify({
+    api_key: 'your_api_key_here'
+});
+```
+
+**セルフホスト版Dify:**
+```javascript
+// セルフホストしているDifyインスタンスのURLに置き換えてください
+const dify = new Dify({
+    api_key: 'your_api_key_here',
+    base_url: 'https://your-dify-instance.com/v1'  // セルフホスト版のURL
+});
+```
+
+## 最初のチャットメッセージ
+
+```javascript
+// シンプルなメッセージを送信
+dify.sendChatMessage({
+    query: 'こんにちは！元気ですか？',
+    user: 'user-123'  // ユーザーの一意識別子
+}).then(function(response) {
+    console.log('AI応答:', response.answer);
+    // ウェブページに応答を表示
+    document.getElementById('response').textContent = response.answer;
+}).catch(function(error) {
+    console.error('エラー:', error);
+});
+```
+
+### 完全なHTMLサンプル
+
+コピペで使える完全な動作サンプル：
+
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dify チャットサンプル</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .chat-container { max-width: 600px; margin: 0 auto; }
+        .message { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .user-message { background-color: #007bff; color: white; text-align: right; }
+        .ai-message { background-color: #f8f9fa; border: 1px solid #dee2e6; }
+        input[type="text"] { width: 70%; padding: 10px; }
+        button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <h1>Dify AIとチャット</h1>
+        <div id="chat-messages"></div>
+        <div>
+            <input type="text" id="user-input" placeholder="メッセージを入力してください..." />
+            <button onclick="sendMessage()">送信</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/gh/takaaki-mizuno/dify-js@0.1.0/dify.js"></script>
+    <script>
+        // Difyクライアントを初期化
+        const dify = new Dify({
+            api_key: 'your_api_key_here'  // 実際のAPIキーに置き換えてください
+            // セルフホスト版の場合、追加: base_url: 'https://your-dify-instance.com/v1'
+        });
+
+        function addMessage(message, isUser) {
+            const chatMessages = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message ' + (isUser ? 'user-message' : 'ai-message');
+            messageDiv.textContent = message;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('user-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // ユーザーメッセージをチャットに追加
+            addMessage(message, true);
+            input.value = '';
+            
+            // Difyに送信
+            dify.sendChatMessage({
+                query: message,
+                user: 'user-123'
+            }).then(function(response) {
+                addMessage(response.answer, false);
+            }).catch(function(error) {
+                addMessage('エラー: ' + error.message, false);
+            });
+        }
+
+        // Enterキーでメッセージ送信
+        document.getElementById('user-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
+```
+
+### 高度な機能
+
+#### ストリーミング応答（リアルタイム）
+
+文字ごとにリアルタイムで表示される応答：
+
+```javascript
+dify.sendChatMessage({
+    query: '物語を教えて',
+    user: 'user-123',
+    response_mode: 'streaming'  // ストリーミングを有効化
+}, 
+function onMessage(data) {
+    // 応答の各部分に対してこの関数が呼ばれます
+    if (data.event === 'message') {
+        console.log('部分応答:', data.answer);
+        // この部分を表示に追加
+        document.getElementById('response').textContent += data.answer;
+    }
+}, 
+function onError(error) {
+    console.error('ストリーミングエラー:', error);
+}, 
+function onComplete() {
+    console.log('応答完了！');
+});
+```
+
+#### ファイルアップロード
+
+```javascript
+// HTML: <input type="file" id="file-input">
+const fileInput = document.getElementById('file-input');
+const file = fileInput.files[0];
+
+if (file) {
+    dify.uploadFile(file, 'user-123')
+        .then(function(result) {
+            console.log('ファイルアップロード完了！ ID:', result.id);
+            
+            // ファイルをメッセージで使用
+            dify.sendChatMessage({
+                query: 'このファイルを分析してください',
+                user: 'user-123',
+                files: [{
+                    type: 'document',
+                    transfer_method: 'local_file',
+                    upload_file_id: result.id
+                }]
+            }).then(function(response) {
+                console.log('分析結果:', response.answer);
+            });
+        })
+        .catch(function(error) {
+            console.error('アップロード失敗:', error);
+        });
+}
+```
+
+#### ワークフローAPI
+
+```javascript
+// ワークフローを実行
+dify.runWorkflow({
+    inputs: {
+        text: 'Hello World',
+        number: 42
+    },
+    user: 'user-123'
+}).then(function(response) {
+    console.log('ワークフロー結果:', response.data.outputs);
+}).catch(function(error) {
+    console.error('ワークフローエラー:', error);
+});
+```
+
+### APIリファレンス
+
+#### 主要メソッド
+
+##### `new Dify(options)`
+- `options.api_key` (string, 必須): Dify APIキー
+- `options.base_url` (string, オプション): カスタムAPIベースURL。デフォルト: `https://api.dify.ai/v1`
+  - セルフホスト版の場合: インスタンスURL + `/v1` を使用（例: `https://your-dify.com/v1`）
+
+##### `sendChatMessage(options, onMessage, onError, onComplete)`
+- `options.query` (string, 必須): ユーザーのメッセージ
+- `options.user` (string, 必須): ユーザー識別子
+- `options.response_mode` (string): 'blocking' または 'streaming'
+- `options.conversation_id` (string): 既存の会話を継続
+- `options.inputs` (object): アプリ変数
+- `options.files` (array): ファイル添付
+- コールバック（ストリーミングのみ）: `onMessage`, `onError`, `onComplete`
+
+##### `uploadFile(file, user)`
+- `file` (File): input要素からのFileオブジェクト
+- `user` (string): ユーザー識別子
+
+##### `runWorkflow(options, onMessage, onError, onComplete)`
+- `options.inputs` (object, 必須): ワークフロー入力変数
+- `options.user` (string, 必須): ユーザー識別子
+- `options.response_mode` (string): 'blocking' または 'streaming'
+
+### エラーハンドリング
+
+良いユーザー体験のため、常にエラーを処理してください
+
+```javascript
+dify.sendChatMessage({
+    query: 'こんにちは',
+    user: 'user-123'
+}).then(function(response) {
+    // 成功
+    console.log(response.answer);
+}).catch(function(error) {
+    // 異なるタイプのエラーを処理
+    if (error.message.includes('401')) {
+        alert('APIキーが無効です。設定を確認してください。');
+    } else if (error.message.includes('429')) {
+        alert('リクエストが多すぎます。少しお待ちください。');
+    } else {
+        alert('何らかのエラーが発生しました: ' + error.message);
+    }
+});
+```

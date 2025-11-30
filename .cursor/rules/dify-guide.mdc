@@ -207,6 +207,73 @@ dify.runWorkflow({
 });
 ```
 
+#### ワークフローAPIでファイルを使用する
+
+ワークフローでファイルを使用する場合、**チャットAPIとは異なる形式**でファイルを渡す必要があります。
+
+**重要な注意点：**
+- ワークフローAPIでは`inputs`オブジェクト内でファイルを指定します
+- `type`は実際のファイルタイプに合わせる必要があります（`'image'`, `'document'`など）
+- `type: 'file'`は使用できません。必ず具体的なファイルタイプを指定してください
+
+```javascript
+// HTML: <input type="file" id="file-input">
+const fileInput = document.getElementById('file-input');
+const file = fileInput.files[0];
+
+if (file) {
+    // 1. まずファイルをアップロード
+    dify.uploadFile(file, 'user-123')
+        .then(function(uploadResult) {
+            console.log('ファイルアップロード完了！ ID:', uploadResult.id);
+            
+            // 2. ワークフローを実行（ファイルタイプに応じてtypeを指定）
+            // 画像ファイルの場合
+            if (file.type.startsWith('image/')) {
+                return dify.runWorkflow({
+                    inputs: {
+                        file: {
+                            type: 'image',  // ⚠️ 'file'ではなく'image'を指定
+                            transfer_method: 'local_file',
+                            upload_file_id: uploadResult.id
+                        }
+                    },
+                    user: 'user-123'
+                });
+            }
+            // ドキュメントファイルの場合
+            else {
+                return dify.runWorkflow({
+                    inputs: {
+                        file: {
+                            type: 'document',  // ⚠️ 'file'ではなく'document'を指定
+                            transfer_method: 'local_file',
+                            upload_file_id: uploadResult.id
+                        }
+                    },
+                    user: 'user-123'
+                });
+            }
+        })
+        .then(function(response) {
+            console.log('ワークフロー結果:', response.data.outputs);
+        })
+        .catch(function(error) {
+            console.error('エラー:', error);
+            // "Detected file type does not match" エラーが出た場合、
+            // typeの指定が間違っている可能性があります
+        });
+}
+```
+
+**ファイルタイプの指定ルール：**
+- 画像ファイル（JPG, PNG, GIF, WEBP, SVGなど）: `type: 'image'`
+- ドキュメントファイル（PDF, DOCX, TXTなど）: `type: 'document'`
+- 音声ファイル: `type: 'audio'`
+- 動画ファイル: `type: 'video'`
+
+ワークフローの定義（YAML）で`allowed_file_types`を確認し、それに合わせて`type`を指定してください。
+
 ### APIリファレンス
 
 #### 主要メソッド
@@ -231,6 +298,8 @@ dify.runWorkflow({
 
 ##### `runWorkflow(options, onMessage, onError, onComplete)`
 - `options.inputs` (object, 必須): ワークフロー入力変数
+  - ファイルを使用する場合: `{ file: { type: 'image'|'document'|'audio'|'video', transfer_method: 'local_file', upload_file_id: string } }`
+  - ⚠️ **重要**: `type`は`'file'`ではなく、実際のファイルタイプ（`'image'`, `'document'`など）を指定する必要があります
 - `options.user` (string, 必須): ユーザー識別子
 - `options.response_mode` (string): 'blocking' または 'streaming'
 
@@ -256,3 +325,32 @@ dify.sendChatMessage({
     }
 });
 ```
+
+#### よくあるエラーと対処法
+
+**1. "Detected file type does not match the specified type" (400エラー)**
+- **原因**: ワークフローAPIでファイルを渡す際、`type`の指定が間違っている
+- **対処法**: 
+  - 画像ファイルの場合は`type: 'image'`を指定（`'file'`ではない）
+  - ドキュメントファイルの場合は`type: 'document'`を指定
+  - ワークフローのYAML定義で`allowed_file_types`を確認し、それに合わせる
+
+**2. "invalid_param" (400エラー)**
+- **原因**: リクエストパラメータが不正
+- **対処法**: 
+  - 必須パラメータ（`user`, `inputs`など）が正しく渡されているか確認
+  - ファイルを使用する場合、`upload_file_id`が正しく設定されているか確認
+
+**3. "401 Unauthorized"**
+- **原因**: APIキーが無効または期限切れ
+- **対処法**: APIキーを確認し、必要に応じて再生成
+
+**4. "429 Too Many Requests"**
+- **原因**: リクエスト制限を超えた
+- **対処法**: しばらく待ってから再試行
+
+**5. ファイルアップロード時のエラー**
+- **対処法**: 
+  - ファイルサイズ制限を確認（通常10MB以下）
+  - 対応ファイル形式を確認
+  - ファイルが正しく読み込まれているか確認
